@@ -1,0 +1,476 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spanish Learning Arcade</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#f2f3fa;color:#252c45;
+ font-family:Arial,sans-serif;padding:15px
+}
+header{
+ background:linear-gradient(135deg,#635bdb,#a45cce);
+ color:white;padding:25px;border-radius:20px;
+ text-align:center;margin-bottom:18px
+}
+header h1{margin:5px;font-size:27px}
+header p{margin:8px 0}
+nav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}
+button,select,input{font:inherit}
+nav button,.action{
+ border:0;border-radius:12px;padding:12px;
+ background:#fff;color:#5148bd;font-weight:bold;
+ cursor:pointer
+}
+nav button.active,.action{
+ background:#635bdb;color:white
+}
+.panel{
+ background:white;border-radius:18px;padding:18px;
+ margin-bottom:15px;box-shadow:0 3px 15px #20204012
+}
+h2{color:#6259c7}
+h3{margin-bottom:8px}
+select,input{
+ border:1px solid #ddd;border-radius:10px;
+ padding:12px;background:white;max-width:100%
+}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{
+ flex:1;background:#f1efff;padding:12px;
+ border-radius:12px;text-align:center;min-width:90px
+}
+.stat strong{display:block;font-size:22px;color:#6259c7}
+.cards{
+ display:grid;grid-template-columns:repeat(3,1fr);
+ gap:10px;margin-top:15px
+}
+.memory{
+ min-height:105px;border:0;border-radius:14px;
+ background:#635bdb;color:white;font-size:17px;
+ font-weight:bold;padding:10px;cursor:pointer;
+ overflow-wrap:anywhere
+}
+.memory.open,.memory.matched{
+ background:#e9e7ff;color:#37306f
+}
+.memory.matched{background:#d9f5e6;color:#176b43}
+.message{padding:12px;border-radius:10px;margin-top:12px}
+.good{background:#dcf7e8;color:#176b43}
+.bad{background:#ffe5e5;color:#a02c2c}
+.grid{
+ display:grid;grid-template-columns:repeat(12, minmax(0,1fr));
+ gap:3px;margin:15px auto;max-width:440px
+}
+.cell{
+ aspect-ratio:1;border:1px solid #ddd;border-radius:5px;
+ display:flex;align-items:center;justify-content:center;
+ background:#f7f7fc;font-weight:bold;font-size:clamp(10px,3vw,16px);
+ cursor:pointer;user-select:none
+}
+.cell.selected{background:#b9b3ff;color:#272064}
+.cell.found{background:#a9edc7;color:#155c39}
+.wordlist{display:flex;flex-wrap:wrap;gap:8px}
+.word{background:#f0efff;padding:9px;border-radius:9px}
+.word.done{text-decoration:line-through;background:#d9f5e6}
+.clue{background:#f5f4fc;padding:12px;border-radius:12px;margin:10px 0}
+.answer{width:100%;margin-top:8px}
+.hidden{display:none}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px;border-bottom:1px solid #eee;text-align:left}
+footer{text-align:center;color:#888;padding:20px}
+@media(max-width:450px){
+ .cards{grid-template-columns:repeat(3,1fr)}
+ .memory{min-height:90px;font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>🇪🇸 Spanish Learning Arcade</h1>
+<p>Spansk – Norsk | Norsk – Spansk</p>
+<p>Learn • Play • Remember 🎮</p>
+</header>
+
+<div class="stats">
+ <div class="stat">⭐ Score<strong id="score">0</strong></div>
+ <div class="stat">✓ Correct<strong id="correct">0</strong></div>
+ <div class="stat">✗ Mistakes<strong id="mistakes">0</strong></div>
+</div>
+
+<nav>
+<button class="active" onclick="showGame('memory',this)">🧠 Memory</button>
+<button onclick="showGame('search',this)">🔎 Word Search</button>
+<button onclick="showGame('cross',this)">✏️ Crossword</button>
+<button onclick="showGame('grammar',this)">📚 Grammar</button>
+</nav>
+
+<!-- MEMORY GAME -->
+<section id="memory" class="panel">
+<h2>🧠 Memory Game – Huskespill</h2>
+<p>Find the matching Norwegian and Spanish translations.</p>
+<div class="controls">
+<select id="memoryMode">
+<option value="no">Norsk → Spansk</option>
+<option value="es">Spansk → Norsk</option>
+</select>
+<button class="action" onclick="startMemory()">New Game 🔄</button>
+</div>
+<p id="memoryInfo">Find the matching pairs!</p>
+<div class="cards" id="memoryCards"></div>
+<div id="memoryMessage"></div>
+</section>
+
+<!-- WORD SEARCH -->
+<section id="search" class="panel hidden">
+<h2>🔎 Word Search – Ordsøk</h2>
+<p>Find the hidden Spanish words!</p>
+<div class="controls">
+<select id="searchMode">
+<option value="no">Norwegian clues</option>
+<option value="es">Spanish words</option>
+</select>
+<button class="action" onclick="startSearch()">New Puzzle 🔄</button>
+</div>
+<div id="searchClues"></div>
+<div class="grid" id="searchGrid"></div>
+<p>Tap the first and last letter of a word.</p>
+<div id="searchMessage"></div>
+</section>
+
+<!-- CROSSWORD -->
+<section id="cross" class="panel hidden">
+<h2>✏️ Crossword – Kryssord</h2>
+<p>Translate the clues and write the Spanish word.</p>
+<div class="controls">
+<select id="crossMode">
+<option value="no">Norsk → Spansk</option>
+<option value="es">Spansk → Norsk</option>
+</select>
+<button class="action" onclick="startCross()">New Crossword 🔄</button>
+</div>
+<div id="crossClues"></div>
+<div id="crossMessage"></div>
+</section>
+
+<!-- GRAMMAR -->
+<section id="grammar" class="panel hidden">
+<h2>📚 Grammar – Grammatikk</h2>
+<div class="controls">
+<select id="grammarType">
+<option value="haber">Haber – perfektum</option>
+<option value="ir">Ir – framtid</option>
+</select>
+<button class="action" onclick="showGrammar()">Show conjugation</button>
+</div>
+<div id="grammarTable"></div>
+<h3>🎯 Test yourself</h3>
+<p id="grammarQuestion"></p>
+<input id="grammarAnswer" placeholder="Write your answer in Spanish">
+<button class="action" onclick="checkGrammar()">Check answer</button>
+<div id="grammarMessage"></div>
+</section>
+
+<footer>🇪🇸 ¡Muy bien! Keep practising!</footer>
+
+<script>
+// VOCABULARY DATABASE
+const haber=[
+["Jeg har snakket","He hablado"],
+["Jeg har spist","He comido"],
+["Jeg har drukket","He bebido"],
+["Jeg har kjøpt","He comprado"],
+["Jeg har bodd","He vivido"],
+["Jeg har lært","He aprendido"],
+["Jeg har studert","He estudiado"],
+["Jeg har jobbet","He trabajado"],
+["Jeg har spilt","He jugado"],
+["Jeg har sett","He visto"],
+["Jeg har gjort","He hecho"],
+["Jeg har skrevet","He escrito"],
+["Jeg har lest","He leído"],
+["Jeg har vært","He estado"],
+["Jeg har hatt","He tenido"],
+["Jeg har reist","He viajado"],
+["Jeg har besøkt","He visitado"],
+["Jeg har hørt","He escuchado"],
+["Jeg har laget","He preparado"],
+["Jeg har gått","He ido"]
+];
+
+const ir=[
+["Jeg skal snakke","Voy a hablar"],
+["Jeg skal spise","Voy a comer"],
+["Jeg skal drikke","Voy a beber"],
+["Jeg skal kjøpe","Voy a comprar"],
+["Jeg skal reise","Voy a viajar"],
+["Jeg skal besøke","Voy a visitar"],
+["Jeg skal studere","Voy a estudiar"],
+["Jeg skal jobbe","Voy a trabajar"],
+["Jeg skal spille","Voy a jugar"],
+["Jeg skal se","Voy a ver"],
+["Jeg skal gjøre","Voy a hacer"],
+["Jeg skal skrive","Voy a escribir"],
+["Jeg skal lese","Voy a leer"],
+["Jeg skal sove","Voy a dormir"],
+["Jeg skal være","Voy a estar"],
+["Jeg skal ha","Voy a tener"],
+["Jeg skal gå","Voy a ir"],
+["Jeg skal lære","Voy a aprender"],
+["Jeg skal høre","Voy a escuchar"],
+["Jeg skal lage","Voy a preparar"]
+];
+
+const conjugations={
+haber:[
+["Yo","He"],["Tú","Has"],["Él/ella","Ha"],
+["Nosotros","Hemos"],["Vosotros","Habéis"],["Ellos/ellas","Han"]
+],
+ir:[
+["Yo","Voy"],["Tú","Vas"],["Él/ella","Va"],
+["Nosotros","Vamos"],["Vosotros","Vais"],["Ellos/ellas","Van"]
+]
+};
+
+let score=0,correct=0,mistakes=0;
+function updateStats(){
+ document.getElementById("score").textContent=score;
+ document.getElementById("correct").textContent=correct;
+ document.getElementById("mistakes").textContent=mistakes;
+}
+function answerResult(ok,element){
+ if(ok){score+=10;correct++;}
+ else{mistakes++;}
+ updateStats();
+}
+function showGame(id,btn){
+ document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+ btn.classList.add("active");
+}
+function shuffle(a){return [...a].sort(()=>Math.random()-.5);}
+function normalize(s){
+ return s.toLowerCase().trim()
+ .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+ .replace(/[¿?¡!.,]/g,"").replace(/\s+/g," ");
+}
+function message(id,text,good){
+ document.getElementById(id).innerHTML=
+ `<div class="message ${good?'good':'bad'}">${text}</div>`;
+}
+
+// MEMORY
+let first=null,lock=false,matched=0;
+function startMemory(){
+ first=null;lock=false;matched=0;
+ const mode=document.getElementById("memoryMode").value;
+ const pairs=shuffle([...haber,...ir]).slice(0,9);
+ let deck=[];
+ pairs.forEach((p,i)=>{
+ deck.push({id:i,text:p[mode==="no"?0:1]});
+ deck.push({id:i,text:p[mode==="no"?1:0]});
+ });
+ deck=shuffle(deck);
+ const container=document.getElementById("memoryCards");
+ container.innerHTML="";
+ document.getElementById("memoryMessage").innerHTML="";
+ document.getElementById("memoryInfo").textContent="Find all 9 pairs!";
+ deck.forEach(card=>{
+ const b=document.createElement("button");
+ b.className="memory";
+ b.textContent="❓";
+ b.dataset.id=card.id;
+ b.dataset.text=card.text;
+ b.onclick=()=>flip(b);
+ container.appendChild(b);
+ });
+}
+function flip(b){
+ if(lock||b.classList.contains("open")||b.classList.contains("matched"))return;
+ b.classList.add("open");b.textContent=b.dataset.text;
+ if(!first){first=b;return;}
+ lock=true;
+ if(first.dataset.id===b.dataset.id){
+ first.classList.add("matched");b.classList.add("matched");
+ first=null;lock=false;matched++;
+ answerResult(true);
+ if(matched===9)message("memoryMessage","🎉 ¡Excelente! You found all pairs!",true);
+ }else{
+ answerResult(false);
+ setTimeout(()=>{
+ first.classList.remove("open");first.textContent="❓";
+ b.classList.remove("open");b.textContent="❓";
+ first=null;lock=false;
+ },850);
+ }
+}
+
+// WORD SEARCH
+const searchWords=[
+["hablado","snakket"],["comido","spist"],["bebido","drukket"],
+["comprado","kjøpt"],["vivido","bodd"],["aprendido","lært"],
+["estudiado","studert"],["trabajado","jobbet"],
+["jugado","spilt"],["viajar","reise"]
+];
+let foundWords=[],firstCell=null,searchData=[];
+function startSearch(){
+ const mode=document.getElementById("searchMode").value;
+ foundWords=[];firstCell=null;
+ let chosen=shuffle(searchWords).slice(0,8);
+ let grid=Array.from({length:12},()=>Array(12).fill(""));
+ let placements=[];
+ chosen.forEach(([word,translation])=>{
+ let placed=false;
+ for(let tries=0;tries<150&&!placed;tries++){
+ let horizontal=Math.random()>.5;
+ let row=Math.floor(Math.random()*12);
+ let col=Math.floor(Math.random()*(horizontal?13-word.length:12));
+ if(!horizontal)row=Math.floor(Math.random()*(13-word.length));
+ let ok=true;
+ for(let i=0;i<word.length;i++){
+ let r=row+(horizontal?0:i),c=col+(horizontal?i:0);
+ if(grid[r][c]!==""&&grid[r][c]!==word[i])ok=false;
+ }
+ if(ok){
+ for(let i=0;i<word.length;i++)
+ grid[row+(horizontal?0:i)][col+(horizontal?i:0)]=word[i];
+ placements.push({word,translation,row,col,horizontal});
+ placed=true;
+ }
+ }
+ });
+ const letters="ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+ grid=grid.map(row=>row.map(c=>c||letters[Math.floor(Math.random()*letters.length)]));
+ searchData=placements;
+ const list=document.getElementById("searchClues");
+ list.innerHTML="<h3>Find these words:</h3><div class='wordlist'>"+
+ placements.map(p=>`<span class="word" id="word-${p.word}">${mode==="no"?p.translation:p.word}</span>`).join("")+"</div>";
+ const container=document.getElementById("searchGrid");
+ container.innerHTML="";
+ grid.forEach((row,r)=>row.forEach((letter,c)=>{
+ const cell=document.createElement("div");
+ cell.className="cell";cell.textContent=letter;
+ cell.dataset.r=r;cell.dataset.c=c;
+ cell.onclick=()=>selectCell(cell);
+ container.appendChild(cell);
+ }));
+ document.getElementById("searchMessage").innerHTML="";
+}
+function selectCell(cell){
+ if(cell.classList.contains("found"))return;
+ if(!firstCell){
+ firstCell=cell;cell.classList.add("selected");return;
+ }
+ const r1=+firstCell.dataset.r,c1=+firstCell.dataset.c;
+ const r2=+cell.dataset.r,c2=+cell.dataset.c;
+ const dr=Math.sign(r2-r1),dc=Math.sign(c2-c1);
+ let letters="",cells=[],r=r1,c=c1;
+ if(r1===r2||c1===c2||Math.abs(r2-r1)===Math.abs(c2-c1)){
+ while(true){
+ const el=document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+ if(!el)break;
+ letters+=el.textContent;cells.push(el);
+ if(r===r2&&c===c2)break;
+ r+=dr;c+=dc;
+ }
+ }
+ firstCell.classList.remove("selected");
+ firstCell=null;
+ const reversed=letters.split("").reverse().join("");
+ const found=searchData.find(p=>
+ !foundWords.includes(p.word)&&
+ (p.word===letters.toLowerCase()||p.word===reversed.toLowerCase()));
+ if(found){
+ foundWords.push(found.word);
+ cells.forEach(c=>c.classList.add("found"));
+ document.getElementById("word-"+found.word).classList.add("done");
+ answerResult(true);
+ if(foundWords.length===searchData.length)
+ message("searchMessage","🏆 All words found! ¡Muy bien!",true);
+ }else{
+ answerResult(false);
+ }
+}
+
+// CROSSWORD: vocabulary challenge with crossword clues
+const crosswordWords=[
+["hablar","å snakke"],["comer","å spise"],["beber","å drikke"],
+["comprar","å kjøpe"],["vivir","å bo"],["aprender","å lære"],
+["estudiar","å studere"],["trabajar","å jobbe"],
+["jugar","å spille"],["viajar","å reise"],
+["dormir","å sove"],["escribir","å skrive"]
+];
+let crossDone=[];
+function startCross(){
+ crossDone=[];
+ const mode=document.getElementById("crossMode").value;
+ const clues=shuffle(crosswordWords);
+ const container=document.getElementById("crossClues");
+ container.innerHTML="";
+ clues.forEach(([es,no],i)=>{
+ const div=document.createElement("div");
+ div.className="clue";
+ div.innerHTML=`<strong>${i+1}. ${mode==="no"?no:es}</strong>
+ <input class="answer" id="cross-${i}" placeholder="${mode==="no"?"Skriv på spansk":"Skriv på norsk"}">
+ <button class="action" style="margin-top:8px" onclick="checkCross(${i},'${es}','${no}')">Check</button>
+ <span id="result-${i}"></span>`;
+ container.appendChild(div);
+ });
+ document.getElementById("crossMessage").innerHTML="";
+}
+function checkCross(i,es,no){
+ if(crossDone.includes(i))return;
+ const mode=document.getElementById("crossMode").value;
+ const answer=document.getElementById("cross-"+i).value;
+ const expected=mode==="no"?es:no;
+ const ok=normalize(answer)===normalize(expected);
+ if(ok){
+ crossDone.push(i);answerResult(true);
+ document.getElementById("result-"+i).textContent=" ✓ Correct!";
+ document.getElementById("cross-"+i).disabled=true;
+ if(crossDone.length===12)
+ message("crossMessage","🎉 Crossword completed!",true);
+ }else{
+ answerResult(false);
+ document.getElementById("result-"+i).textContent=" ✗ Try again!";
+ }
+}
+
+// GRAMMAR
+let grammarIndex=0;
+function showGrammar(){
+ const type=document.getElementById("grammarType").value;
+ const data=conjugations[type];
+ document.getElementById("grammarTable").innerHTML=
+ "<table><tr><th>Person</th><th>"+type.toUpperCase()+"</th></tr>"+
+ data.map(x=>`<tr><td>${x[0]}</td><td><strong>${x[1]}</strong></td></tr>`).join("")+
+ "</table>";
+ grammarIndex=Math.floor(Math.random()*data.length);
+ document.getElementById("grammarQuestion").textContent=
+ "Translate the person: "+data[grammarIndex][0];
+ document.getElementById("grammarAnswer").value="";
+ document.getElementById("grammarMessage").innerHTML="";
+}
+function checkGrammar(){
+ const type=document.getElementById("grammarType").value;
+ const expected=conjugations[type][grammarIndex][1];
+ const answer=document.getElementById("grammarAnswer").value;
+ const ok=normalize(answer)===normalize(expected);
+ answerResult(ok);
+ message("grammarMessage",ok?"✓ ¡Correcto!":"✗ Try again! Hint: "+expected,ok);
+ if(ok)setTimeout(showGrammar,1300);
+}
+
+startMemory();
+startSearch();
+startCross();
+showGrammar();
+</script>
+</body>
+</html>
